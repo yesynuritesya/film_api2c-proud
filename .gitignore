@@ -1,0 +1,7 @@
+# PORT=3300
+
+# DB_SOURCE="movies.db"
+
+node_modules/
+
+.env
