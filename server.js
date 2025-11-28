@@ -155,7 +155,92 @@ app.delete('/movies/:id', [authenticateToken, authorizeRole('admin')], async (re
 });
 
 // === DIRECTOR ROUTES (TUGAS PRAKTIKUM) ===
-// (Mahasiswa harus me-refactor endpoint /directors dengan pola yang sama)
+// === DIRECTOR ROUTES (TUGAS PRAKTIKUM) ===
+
+// 1. GET Semua Sutradara
+app.get('/directors', async (req, res, next) => {
+    const sql = 'SELECT id, name, "birthYear" FROM directors ORDER BY id ASC'; 
+    try {
+        const result = await db.query(sql);
+        res.json(result.rows);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// 2. GET Sutradara Berdasarkan ID
+app.get('/directors/:id', async (req, res, next) => {
+    const sql = 'SELECT id, name, "birthYear" FROM directors WHERE id = $1';
+    try {
+        const result = await db.query(sql, [req.params.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Sutradara tidak ditemukan' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// 3. POST Sutradara Baru (Hanya Butuh Token, tidak wajib Admin)
+app.post('/directors', authenticateToken, async (req, res, next) => {
+    const { name, birthYear } = req.body;
+    if (!name || !birthYear) {
+        return res.status(400).json({ error: 'name dan birthYear wajib diisi' });
+    }
+    // Perhatikan penggunaan $1, $2 dan tanda kutip pada "birthYear"
+    const sql = 'INSERT INTO directors (name, "birthYear") VALUES ($1, $2) RETURNING *'; 
+    try {
+        const result = await db.query(sql, [name, birthYear]);
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// 4. PUT Update Sutradara (Wajib Admin)
+app.put('/directors/:id', [authenticateToken, authorizeRole('admin')], async (req, res, next) => {
+    const { name, birthYear } = req.body;
+    if (!name || !birthYear) {
+        return res.status(400).json({ error: 'name dan birthYear wajib diisi untuk pembaruan' });
+    }
+    const sql = 'UPDATE directors SET name = $1, "birthYear" = $2 WHERE id = $3 RETURNING *';
+    try {
+        const result = await db.query(sql, [name, birthYear, req.params.id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Sutradara tidak ditemukan' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// 5. DELETE Hapus Sutradara (Wajib Admin)
+app.delete('/directors/:id', [authenticateToken, authorizeRole('admin')], async (req, res, next) => {
+    const sql = 'DELETE FROM directors WHERE id = $1 RETURNING *';
+    try {
+        const result = await db.query(sql, [req.params.id]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Sutradara tidak ditemukan' });
+        }
+        res.status(204).send();
+    } catch (err) {
+        next(err);
+    }
+});
+
+// === FALLBACK & ERROR HANDLING ===
+app.use((req, res) => {
+  res.status(404).json({ error: 'Rute tidak ditemukan' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('[SERVER ERROR]', err.stack);
+  res.status(500).json({ error: 'Terjadi kesalahan pada server' });
+});
+
+
 
 // === FALLBACK & ERROR HANDLING ===
 app.use((req, res) => {
